@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Word Storm</title>
+<style>
+  :root {
+    --bg: #1b1740; --bg2: #2a2360; --panel: #322a72; --ink: #f6f3ff; --dim: #b3abd9;
+    --tile: #fff4d6; --tile-ink: #2a2147; --accent: #ff6b4a; --good: #3ddc97; --bad: #ff5d73; --gold: #ffd166;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(120% 90% at 50% 0%, var(--bg2), var(--bg) 70%) fixed; color: var(--ink);
+    font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    overscroll-behavior: none; -webkit-user-select: none; user-select: none;
+  }
+  #app { min-height: 100%; display: flex; flex-direction: column; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+  h1, h2, h3, p { margin: 0; }
+  .logo { font-weight: 900; letter-spacing: .04em; font-size: clamp(28px, 5vw, 56px); }
+  .logo span { color: var(--accent); }
+  .dim { color: var(--dim); }
+  .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; }
+  button, input { font: inherit; color: inherit; }
+  .btn {
+    border: 0; border-radius: 16px; padding: 16px 28px; font-weight: 800; font-size: 20px; cursor: pointer;
+    background: var(--accent); color: #fff; box-shadow: 0 5px 0 #c44428; transition: transform .05s;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #c44428; }
+  .btn[disabled] { opacity: .45; pointer-events: none; }
+  .btn.ghost { background: var(--panel); box-shadow: 0 5px 0 #1f1a4d; }
+  .btn.small { padding: 10px 18px; font-size: 16px; border-radius: 12px; }
+  input.field {
+    width: 100%; border: 2px solid #5b4fb3; background: #221c55; border-radius: 14px; padding: 14px 16px;
+    font-size: 22px; font-weight: 700; text-align: center; outline: none; -webkit-user-select: text; user-select: text;
+  }
+  input.field:focus { border-color: var(--accent); }
+  .card { background: var(--panel); border-radius: 22px; padding: 22px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+  /* grid */
+  .grid { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: calc(var(--w) * .022); width: var(--w); height: var(--w); touch-action: none; }
+  .tile {
+    background: var(--tile); color: var(--tile-ink); border-radius: 16%; display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: calc(var(--w) / var(--n) * .52); box-shadow: 0 calc(var(--w) * .012) 0 #d9c891; line-height: 1;
+  }
+  .tile.sel { background: var(--accent); color: #fff; box-shadow: 0 calc(var(--w) * .012) 0 #c44428; transform: scale(.95); }
+  .tile.good { background: var(--good); box-shadow: 0 calc(var(--w) * .012) 0 #23a36b; }
+  .tile.bad { background: var(--bad); color: #fff; box-shadow: 0 calc(var(--w) * .012) 0 #c23a4e; }
+
+  /* host */
+  .host { flex: 1; display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: center; max-width: 1300px; width: 100%; margin: 0 auto; }
+  @media (max-width: 760px) { .host { grid-template-columns: 1fr; } }
+  .qr { background: #fff; border-radius: 20px; padding: 14px; width: min(38vh, 320px); height: min(38vh, 320px); }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .code { font-size: clamp(48px, 9vw, 110px); font-weight: 900; letter-spacing: .14em; color: var(--gold); line-height: 1; }
+  .url { font-size: 15px; word-break: break-all; -webkit-user-select: text; user-select: text; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { background: #453b96; padding: 9px 16px; border-radius: 999px; font-weight: 800; font-size: 18px; }
+  .chip.off { opacity: .45; }
+  .chip b { color: var(--gold); margin-left: 6px; }
+  .seg { display: inline-flex; background: #221c55; border-radius: 12px; padding: 4px; }
+  .seg button { border: 0; background: none; padding: 8px 14px; border-radius: 9px; font-weight: 800; color: var(--dim); cursor: pointer; }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .setting { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 700; }
+  .timer { font-size: clamp(56px, 11vw, 150px); font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+  .timer.low { color: var(--bad); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  .warn { background: #5a2a3a; border-radius: 12px; padding: 10px 14px; font-size: 14px; text-align: left; }
+
+  /* results */
+  .results { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .pcard h3 { display: flex; justify-content: space-between; font-size: 22px; margin-bottom: 10px; }
+  .pcard.win { outline: 3px solid var(--gold); }
+  .words { display: flex; flex-wrap: wrap; gap: 6px; }
+  .w { background: #221c55; padding: 4px 9px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+  .w.shared { text-decoration: line-through; opacity: .5; }
+  .w sup { color: var(--gold); margin-left: 3px; }
+
+  /* phone */
+  .phone { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 520px; width: 100%; margin: 0 auto; }
+  .phone .top { width: 100%; display: flex; justify-content: space-between; align-items: center; font-weight: 900; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .cur { height: 54px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; letter-spacing: .08em; }
+  .cur.good { color: var(--good); } .cur.bad { color: var(--bad); } .cur.hint { color: var(--dim); font-size: 18px; letter-spacing: 0; font-weight: 700; }
+  .found { width: 100%; flex: 1; overflow-y: auto; align-content: flex-start; min-height: 60px; }
+  .status { position: fixed; top: 0; left: 0; right: 0; background: var(--bad); color: #fff; text-align: center; font-weight: 800; padding: 6px; font-size: 14px; z-index: 5; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+'use strict';
+const app = document.getElementById('app');
+const PREFIX = 'wordstorm-v1-';
+const params = new URLSearchParams(location.search);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const scoreFor = len => len >= 8 ? 11 : len === 7 ? 5 : len === 6 ? 3 : len === 5 ? 2 : 1;
+const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const LOGO = '<div class="logo">WORD<span>STORM</span></div>';
+const gridHtml = (grid, size, w) =>
+  `<div class="grid" style="--n:${size};--w:${w}">${grid.map((c, i) => `<div class="tile" data-i="${i}">${c === 'QU' ? 'Qu' : c}</div>`).join('')}</div>`;
+
+function neighbors(size) {
+  const out = [];
+  for (let i = 0; i < size * size; i++) {
+    const r = Math.floor(i / size), c = i % size, n = [];
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const rr = r + dr, cc = c + dc;
+      if ((dr || dc) && rr >= 0 && rr < size && cc >= 0 && cc < size) n.push(rr * size + cc);
+    }
+    out.push(n);
+  }
+  return out;
+}
+
+/* ---------------- dictionary + board (host only) ---------------- */
+let trie = null, dictPromise = null;
+function loadDict() {
+  if (!dictPromise) dictPromise = fetch('words.txt').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }).then(txt => {
+    const root = {};
+    for (const raw of txt.split('\n')) {
+      const w = raw.trim().toUpperCase();
+      if (w.length < 3 || w.length > 16 || /[^A-Z]/.test(w)) continue;
+      let n = root;
+      for (let i = 0; i < w.length; i++) n = n[w[i]] || (n[w[i]] = {});
+      n.$ = 1;
+    }
+    trie = root;
+  });
+  return dictPromise;
+}
+function solve(grid, size) {
+  const found = new Set(), used = new Array(size * size).fill(false), nb = neighbors(size);
+  const dfs = (i, node, word) => {
+    for (const ch of grid[i]) { node = node[ch]; if (!node) return; }
+    word += grid[i];
+    if (node.$) found.add(word);
+    used[i] = true;
+    for (const j of nb[i]) if (!used[j]) dfs(j, node, word);
+    used[i] = false;
+  };
+  for (let i = 0; i < size * size; i++) dfs(i, trie, '');
+  return found;
+}
+const WEIGHTS = { E: 12, A: 9, I: 8, O: 8, T: 7, N: 6, R: 6, S: 6, L: 4, D: 4, U: 4, G: 3, C: 3, M: 3, P: 3, H: 3, B: 2, F: 2, Y: 2, W: 2, K: 1, V: 1, X: 1, Z: 1, J: 1, QU: 1 };
+const BAG = Object.entries(WEIGHTS).flatMap(([l, n]) => Array(n).fill(l));
+function newBoard(size) {
+  const want = size === 4 ? 70 : 160;
+  let best = null;
+  for (let t = 0; t < 25; t++) {
+    const grid = Array.from({ length: size * size }, () => BAG[Math.floor(Math.random() * BAG.length)]);
+    const words = solve(grid, size);
+    if (!best || words.size > best.words.size) best = { grid, words };
+    if (words.size >= want) break;
+  }
+  return best;
+}
+
+/* ---------------- HOST ---------------- */
+const Host = {
+  peer: null, code: '', players: new Map(), phase: 'lobby', net: 'Connecting…', dict: 'loading',
+  settings: { size: 4, secs: 120, minLen: 3, cancel: true },
+  grid: [], words: new Set(), endsAt: 0, tick: null, results: null,
+
+  start() {
+    try { Object.assign(this.settings, JSON.parse(store.get('ws-settings') || '{}')); } catch {}
+    loadDict().then(() => { this.dict = 'ready'; this.render(); }, e => { this.dict = 'error: ' + e.message; this.render(); });
+    this.open();
+    this.render();
+    app.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const a = b.dataset.act;
+      if (a === 'set') { this.settings[b.dataset.k] = JSON.parse(b.dataset.v); store.set('ws-settings', JSON.stringify(this.settings)); this.render(); }
+      if (a === 'start') this.startRound();
+      if (a === 'end') this.finish();
+      if (a === 'lobby') { this.phase = 'lobby'; this.broadcast(); this.render(); }
+    });
+    const lock = () => navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {});
+    lock(); document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && lock());
+  },
+  open() {
+    let saved = null; try { saved = sessionStorage.getItem('ws-code'); } catch {}
+    const A = 'BCDFGHJKLMNPQRSTVWXZ';
+    this.code = saved || Array.from({ length: 4 }, () => A[Math.floor(Math.random() * A.length)]).join('');
+    const peer = this.peer = new Peer(PREFIX + this.code);
+    peer.on('open', () => { try { sessionStorage.setItem('ws-code', this.code); } catch {} this.net = ''; this.render(); });
+    peer.on('disconnected', () => { this.net = 'Reconnecting…'; this.render(); setTimeout(() => !peer.destroyed && peer.reconnect(), 1500); });
+    peer.on('error', err => {
+      if (err.type === 'unavailable-id') { try { sessionStorage.removeItem('ws-code'); } catch {} peer.destroy(); this.open(); return; }
+      if (err.type === 'peer-unavailable') return;
+      this.net = 'Connection problem (' + err.type + ')'; this.render();
+    });
+    peer.on('connection', conn => {
+      let p = null;
+      conn.on('data', m => {
+        if (!m || typeof m !== 'object') return;
+        if (m.t === 'hello') {
+          const id = String(m.id || '').slice(0, 40); if (!id) return;
+          const name = String(m.name || 'Player').trim().slice(0, 14) || 'Player';
+          p = this.players.get(id) || { id, words: [] };
+          if (p.conn && p.conn !== conn) try { p.conn.close(); } catch {}
+          Object.assign(p, { name, conn, on: true });
+          this.players.set(id, p);
+          if (this.phase === 'play') this.send(p); else this.broadcast();
+          this.render();
+        } else if (m.t === 'word' && p) this.onWord(p, m.w);
+      });
+      const gone = () => {
+        if (!p || p.conn !== conn) return;
+        p.on = false;
+        if (this.phase === 'lobby') { this.players.delete(p.id); this.broadcast(); }
+        this.render();
+      };
+      conn.on('close', gone); conn.on('error', gone);
+    });
+  },
+  stateFor(p) {
+    const s = this.settings;
+    return {
+      t: 'state', phase: this.phase, size: s.size, minLen: s.minLen, grid: this.phase === 'lobby' ? [] : this.grid,
+      remainingMs: this.phase === 'play' ? this.endsAt - Date.now() : 0,
+      found: p.words.map(w => ({ w, pts: scoreFor(w.length) })),
+      players: [...this.players.values()].map(x => x.name), results: this.phase === 'results' ? this.results : null, you: p.id,
+    };
+  },
+  send(p, msg) { if (p.conn && p.conn.open) try { p.conn.send(msg || this.stateFor(p)); } catch {} },
+  broadcast() { for (const p of this.players.values()) this.send(p); },
+  startRound() {
+    if (!trie) return;
+    const s = this.settings, b = newBoard(s.size);
+    this.grid = b.grid;
+    this.words = new Set([...b.words].filter(w => w.length >= s.minLen));
+    for (const p of this.players.values()) p.words = [];
+    this.phase = 'play'; this.endsAt = Date.now() + s.secs * 1000; this.results = null;
+    clearInterval(this.tick);
+    this.tick = setInterval(() => {
+      const left = this.endsAt - Date.now(), el = document.getElementById('timer');
+      if (el) { el.textContent = fmt(left); el.classList.toggle('low', left <= 10000); }
+      if (left <= 0) this.finish();
+    }, 200);
+    this.broadcast(); this.render();
+  },
+  onWord(p, w) {
+    w = String(w || '').toUpperCase().slice(0, 40);
+    const no = reason => this.send(p, { t: 'wr', w, ok: false, reason });
+    if (this.phase !== 'play' || Date.now() > this.endsAt + 800) return no("Time's up");
+    if (w.length < this.settings.minLen) return no('Too short');
+    if (p.words.includes(w)) return no('Already found');
+    if (!this.words.has(w)) return no('Not a word');
+    p.words.push(w);
+    this.send(p, { t: 'wr', w, ok: true, pts: scoreFor(w.length) });
+    const el = document.querySelector(`[data-count="${CSS.escape(p.id)}"]`); if (el) el.textContent = p.words.length;
+  },
+  finish() {
+    if (this.phase !== 'play') return;
+    clearInterval(this.tick);
+    this.phase = 'results';
+    const counts = new Map();
+    for (const p of this.players.values()) for (const w of p.words) counts.set(w, (counts.get(w) || 0) + 1);
+    const table = [...this.players.values()].map(p => {
+      const words = p.words.map(w => { const shared = counts.get(w) > 1; return { w, shared, pts: shared && this.settings.cancel ? 0 : scoreFor(w.length) }; })
+        .sort((a, b) => b.pts - a.pts || b.w.length - a.w.length || a.w.localeCompare(b.w));
+      return { id: p.id, name: p.name, words, score: words.reduce((n, x) => n + x.pts, 0) };
+    }).sort((a, b) => b.score - a.score);
+    const missedAll = [...this.words].filter(w => !counts.has(w)).sort((a, b) => b.length - a.length || a.localeCompare(b));
+    this.results = { table, missed: missedAll.slice(0, 36), total: this.words.size, foundCount: counts.size, cancel: this.settings.cancel };
+    this.broadcast(); this.render();
+  },
+  render() {
+    const s = this.settings, players = [...this.players.values()];
+    const net = this.net ? `<div class="status">${esc(this.net)}</div>` : '';
+    if (this.phase === 'lobby') {
+      const url = location.origin + location.pathname + '?join=' + this.code;
+      const local = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+      let qr = '';
+      try { const q = qrcode(0, 'M'); q.addData(url); q.make(); qr = q.createSvgTag({ cellSize: 8, margin: 0, scalable: true }); } catch {}
+      const seg = (k, opts) => `<div class="seg">${opts.map(([v, label]) =>
+        `<button data-act="set" data-k="${k}" data-v='${JSON.stringify(v)}' class="${s[k] === v ? 'on' : ''}">${label}</button>`).join('')}</div>`;
+      const ready = this.dict === 'ready' && players.length > 0 && !this.net;
+      app.innerHTML = `${net}<div class="host">
+        <div class="stack" style="align-items:center;text-align:center">
+          ${LOGO}
+          <p class="dim" style="font-size:20px;font-weight:700">Scan to join on your phone</p>
+          <div class="qr">${qr}</div>
+          <div class="code">${this.code}</div>
+          <p class="dim url">${esc(url)}</p>
+          ${local ? `<div class="warn">This page is open at a <b>localhost</b> address, which phones can't reach. Open it using this computer's network address (or a hosted URL) so the QR code works.</div>` : ''}
+        </div>
+        <div class="stack">
+          <div class="card stack">
+            <h2>Players <span class="dim">(${players.length})</span></h2>
+            <div class="chips">${players.map(p => `<div class="chip">${esc(p.name)}</div>`).join('') || '<span class="dim">Waiting for players to join…</span>'}</div>
+          </div>
+          <div class="card stack">
+            <div class="setting">Grid ${seg('size', [[4, '4 × 4'], [5, '5 × 5']])}</div>
+            <div class="setting">Round time ${seg('secs', [[60, '1 min'], [120, '2 min'], [180, '3 min']])}</div>
+            <div class="setting">Shortest word ${seg('minLen', [[3, '3 letters'], [4, '4 letters']])}</div>
+            <div class="setting">Words found by 2+ players ${seg('cancel', [[true, 'Score 0'], [false, 'Still score']])}</div>
+          </div>
+          <button class="btn" data-act="start" ${ready ? '' : 'disabled'}>${this.dict === 'loading' ? 'Loading dictionary…' : this.dict !== 'ready' ? 'Dictionary failed to load' : 'Start round'}</button>
+        </div>
+      </div>`;
+    } else if (this.phase === 'play') {
+      app.innerHTML = `${net}<div class="host">
+        <div style="display:flex;justify-content:center">${gridHtml(this.grid, s.size, 'min(82vh, 54vw, 760px)')}</div>
+        <div class="stack" style="align-items:center;text-align:center">
+          ${LOGO}
+          <div class="timer" id="timer">${fmt(this.endsAt - Date.now())}</div>
+          <p class="dim" style="font-weight:700">${this.words.size} words hiding in this grid · code <b style="color:var(--gold)">${this.code}</b></p>
+          <div class="chips" style="justify-content:center">${players.map(p => `<div class="chip ${p.on ? '' : 'off'}">${esc(p.name)}<b data-count="${esc(p.id)}">${p.words.length}</b></div>`).join('')}</div>
+          <button class="btn ghost small" data-act="end">End round now</button>
+        </div>
+      </div>`;
+    } else {
+      const r = this.results, top = r.table.length ? r.table[0].score : 0;
+      app.innerHTML = `${net}<div class="results">
+        <div class="row" style="justify-content:space-between">${LOGO}
+          <div class="row"><button class="btn ghost" data-act="lobby">Lobby</button><button class="btn" data-act="start">Play again</button></div></div>
+        <p class="dim" style="font-weight:700">${r.foundCount} of ${r.total} possible words found${r.cancel ? ' · crossed-out words were found by more than one player' : ''}</p>
+        <div class="board">${r.table.map((p, i) => `<div class="card pcard ${p.score === top && top > 0 ? 'win' : ''}">
+          <h3><span>${p.score === top && top > 0 ? '🏆 ' : (i + 1) + '. '}${esc(p.name)}</span><span style="color:var(--gold)">${p.score}</span></h3>
+          <div class="words">${p.words.map(x => `<span class="w ${x.shared && r.cancel ? 'shared' : ''}">${x.w}<sup>${x.pts || ''}</sup></span>`).join('') || '<span class="dim">No words</span>'}</div>
+        </div>`).join('')}</div>
+        ${r.missed.length ? `<div class="card stack"><h3>Longest words nobody found</h3><div class="words">${r.missed.map(w => `<span class="w">${w}</span>`).join('')}</div></div>` : ''}
+        <div style="display:flex;justify-content:center;padding:8px">${gridHtml(this.grid, s.size, 'min(40vh, 60vw, 320px)')}</div>
+      </div>`;
+    }
+  },
+};
+
+/* ---------------- PLAYER ---------------- */
+const Player = {
+  id: '', name: '', code: '', peer: null, conn: null, st: null, net: 'Connecting…', path: [], found: [], endLocal: 0, tick: null, flashT: null, retry: null, nb: [],
+
+  start(code, name) {
+    this.code = code; this.name = name;
+    this.id = store.get('ws-id') || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+    store.set('ws-id', this.id); store.set('ws-name', name);
+    this.connect(); this.render();
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !(this.conn && this.conn.open)) this.connect(); });
+  },
+  connect() {
+    clearTimeout(this.retry);
+    if (this.peer) try { this.peer.destroy(); } catch {}
+    const again = (msg, ms) => { if (this.peer !== peer) return; this.net = msg; this.showNet(); clearTimeout(this.retry); this.retry = setTimeout(() => this.connect(), ms); };
+    const peer = this.peer = new Peer();
+    peer.on('open', () => {
+      const conn = this.conn = peer.connect(PREFIX + this.code, { reliable: true });
+      conn.on('open', () => { this.net = ''; this.showNet(); conn.send({ t: 'hello', id: this.id, name: this.name }); });
+      conn.on('data', m => this.onData(m));
+      conn.on('close', () => again('Reconnecting…', 1500));
+      conn.on('error', () => again('Reconnecting…', 1500));
+    });
+    peer.on('error', err => again(err.type === 'peer-unavailable' ? `Can't find game ${this.code} — is the host screen open?` : 'Reconnecting…', 3000));
+    peer.on('disconnected', () => { if (!(this.conn && this.conn.open)) again('Reconnecting…', 1500); });
+  },
+  showNet() {
+    let el = document.getElementById('net');
+    if (!el) { el = document.createElement('div'); el.id = 'net'; el.className = 'status'; document.body.appendChild(el); }
+    el.textContent = this.net; el.style.display = this.net ? '' : 'none';
+  },
+  onData(m) {
+    if (!m || typeof m !== 'object') return;
+    if (m.t === 'state') {
+      this.st = m; this.found = m.found || []; this.path = [];
+      if (m.phase === 'play') { this.endLocal = performance.now() + m.remainingMs; this.nb = neighbors(m.size); }
+      this.render();
+    } else if (m.t === 'wr') {
+      if (m.ok) { this.found.unshift({ w: m.w, pts: m.pts }); this.renderFound(); this.flash(`${m.w}  +${m.pts}`, 'good'); }
+      else this.flash(m.reason, 'bad');
+    }
+  },
+  flash(text, cls) {
+    const el = document.getElementById('cur'); if (!el) return;
+    el.textContent = text; el.className = 'cur ' + cls;
+    clearTimeout(this.flashT); this.flashT = setTimeout(() => this.paint(), 900);
+  },
+  paint() {
+    const st = this.st; if (!st || st.phase !== 'play') return;
+    document.querySelectorAll('.grid .tile').forEach((t, i) => t.classList.toggle('sel', this.path.includes(i)));
+    const el = document.getElementById('cur'); if (!el) return;
+    const word = this.path.map(i => st.grid[i]).join('');
+    if (word) { clearTimeout(this.flashT); el.textContent = word; el.className = 'cur'; }
+    else { el.textContent = 'Drag across letters to spell a word'; el.className = 'cur hint'; }
+  },
+  renderFound() {
+    const el = document.getElementById('found'); if (!el) return;
+    el.innerHTML = this.found.map(x => `<span class="w">${x.w}<sup>${x.pts}</sup></span>`).join('');
+    const c = document.getElementById('count'); if (c) c.textContent = this.found.length + (this.found.length === 1 ? ' word' : ' words');
+  },
+  submit() {
+    const st = this.st, path = this.path; this.path = [];
+    const word = path.map(i => st.grid[i]).join('');
+    this.paint();
+    if (path.length < 2) return;
+    if (performance.now() > this.endLocal) return this.flash("Time's up", 'bad');
+    if (word.length < st.minLen) return this.flash('Too short', 'bad');
+    if (this.found.some(x => x.w === word)) return this.flash('Already found', 'bad');
+    if (this.conn && this.conn.open) this.conn.send({ t: 'word', w: word }); else this.flash('Not connected', 'bad');
+  },
+  bindGrid(el) {
+    let active = false;
+    const tileAt = (x, y, loose) => {
+      const hit = document.elementFromPoint(x, y), t = hit && hit.closest('.tile');
+      if (!t || !el.contains(t)) return -1;
+      if (!loose) { const r = t.getBoundingClientRect(); if (Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2)) > r.width * 0.43) return -1; }
+      return +t.dataset.i;
+    };
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (performance.now() > this.endLocal) return;
+      active = true; this.path = [];
+      const i = tileAt(e.clientX, e.clientY, true); if (i >= 0) this.path.push(i);
+      this.paint();
+    });
+    el.addEventListener('pointermove', e => {
+      if (!active) return;
+      const i = tileAt(e.clientX, e.clientY, false), p = this.path; if (i < 0) return;
+      if (p.length > 1 && p[p.length - 2] === i) p.pop();
+      else if (!p.includes(i) && (p.length === 0 || this.nb[p[p.length - 1]].includes(i))) p.push(i);
+      else return;
+      this.paint();
+    });
+    const end = () => { if (active) { active = false; this.submit(); } };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', () => { active = false; this.path = []; this.paint(); });
+    el.addEventListener('lostpointercapture', end);
+  },
+  render() {
+    clearInterval(this.tick);
+    const st = this.st;
+    this.showNet();
+    if (!st) { app.innerHTML = `<div class="center">${LOGO}<p class="dim">Joining game <b>${esc(this.code)}</b>…</p><button class="btn ghost small" onclick="location.href=location.pathname">Change code</button></div>`; return; }
+    if (st.phase === 'lobby') {
+      app.innerHTML = `<div class="center">${LOGO}<h2>You're in, ${esc(this.name)}!</h2><p class="dim">Watch the big screen — the round starts there.</p>
+        <div class="chips" style="justify-content:center">${st.players.map(n => `<div class="chip">${esc(n)}</div>`).join('')}</div></div>`;
+    } else if (st.phase === 'play') {
+      app.innerHTML = `<div class="phone">
+        <div class="top"><span id="timer">${fmt(st.remainingMs)}</span><span id="count" class="dim" style="font-size:18px"></span></div>
+        <div id="cur" class="cur"></div>
+        ${gridHtml(st.grid, st.size, 'min(92vw, 52vh, 480px)')}
+        <div id="found" class="words found"></div>
+      </div>`;
+      this.bindGrid(app.querySelector('.grid'));
+      this.paint(); this.renderFound();
+      this.tick = setInterval(() => {
+        const left = this.endLocal - performance.now(), el = document.getElementById('timer'); if (!el) return;
+        el.textContent = left > 0 ? fmt(left) : "Time's up!"; el.style.color = left <= 10000 ? 'var(--bad)' : '';
+      }, 200);
+    } else {
+      const r = st.results, me = r.table.find(p => p.id === st.you), rank = r.table.findIndex(p => p.id === st.you) + 1;
+      app.innerHTML = `<div class="phone" style="gap:16px">${LOGO}
+        ${me ? `<div class="card stack" style="width:100%;text-align:center"><p class="dim" style="font-weight:700">${rank === 1 && me.score > 0 ? '🏆 You won!' : 'You came ' + rank + (['st', 'nd', 'rd'][rank - 1] || 'th')}</p>
+          <div style="font-size:64px;font-weight:900;color:var(--gold);line-height:1">${me.score}</div>
+          <div class="words" style="justify-content:center">${me.words.map(x => `<span class="w ${x.shared && r.cancel ? 'shared' : ''}">${x.w}<sup>${x.pts || ''}</sup></span>`).join('') || '<span class="dim">No words this round</span>'}</div></div>` : ''}
+        <div class="card stack" style="width:100%">${r.table.map((p, i) => `<div class="setting"><span>${i + 1}. ${esc(p.name)}</span><span style="color:var(--gold)">${p.score}</span></div>`).join('')}</div>
+        <p class="dim">Next round starts from the big screen.</p></div>`;
+    }
+  },
+};
+
+/* ---------------- HOME ---------------- */
+function home() {
+  const code = (params.get('join') || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+  app.innerHTML = `<div class="center">${LOGO}
+    <form id="join" class="card stack" style="width:min(100%,380px)">
+      <h2>Join a game</h2>
+      <input class="field" id="code" placeholder="CODE" maxlength="4" autocapitalize="characters" autocomplete="off" autocorrect="off" value="${esc(code)}" style="letter-spacing:.3em">
+      <input class="field" id="name" placeholder="Your name" maxlength="14" autocomplete="off" value="${esc(store.get('ws-name') || '')}">
+      <button class="btn">Join</button>
+    </form>
+    ${code ? '' : `<p class="dim">or</p><button class="btn ghost" id="host">Host on this screen</button><p class="dim" style="max-width:340px">Hosting shows the letter grid, timer and scores — use it on the iPad or TV everyone can see.</p>`}
+  </div>`;
+  const f = document.getElementById('join');
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const c = f.code.value.toUpperCase().replace(/[^A-Z]/g, ''), n = f.name.value.trim();
+    if (c.length !== 4) return f.code.focus();
+    if (!n) return f.name.focus();
+    history.replaceState(null, '', location.pathname + '?join=' + c);
+    Player.start(c, n);
+  });
+  const h = document.getElementById('host');
+  if (h) h.onclick = () => { history.replaceState(null, '', location.pathname + '?host'); Host.start(); };
+  (code ? f.name : f.code).focus();
+}
+if (typeof Peer === 'undefined') app.innerHTML = `<div class="center">${LOGO}<p>Couldn't load the connection library — check the internet connection and reload.</p></div>`;
+else if (params.has('host')) Host.start();
+else home();
+</script>
+</body>
+</html>
