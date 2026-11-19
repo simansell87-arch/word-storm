@@ -15,9 +15,10 @@
   body {
     background: radial-gradient(120% 90% at 50% 0%, var(--bg2), var(--bg) 70%) fixed; color: var(--ink);
     font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
-    overscroll-behavior: none; -webkit-user-select: none; user-select: none;
+    overscroll-behavior: none; -webkit-user-select: none; user-select: none; overflow-x: hidden;
   }
   #app { min-height: 100%; display: flex; flex-direction: column; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+  #fx { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
   h1, h2, h3, p { margin: 0; }
   .logo { font-weight: 900; letter-spacing: .04em; font-size: clamp(28px, 5vw, 56px); }
   .logo span { color: var(--accent); }
@@ -40,64 +41,113 @@
   .card { background: var(--panel); border-radius: 22px; padding: 22px; }
   .stack { display: flex; flex-direction: column; gap: 14px; }
   .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .av { display: inline-flex; align-items: center; justify-content: center; width: var(--s, 34px); height: var(--s, 34px); border-radius: 50%; font-size: calc(var(--s, 34px) * .62); line-height: 1; flex: none; box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); }
 
   /* grid */
+  .gridwrap { position: relative; width: var(--w); height: var(--w); }
   .grid { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: calc(var(--w) * .022); width: var(--w); height: var(--w); touch-action: none; }
   .tile {
-    background: var(--tile); color: var(--tile-ink); border-radius: 16%; display: flex; align-items: center; justify-content: center;
-    font-weight: 900; font-size: calc(var(--w) / var(--n) * .52); box-shadow: 0 calc(var(--w) * .012) 0 #d9c891; line-height: 1;
+    position: relative; background: var(--tile); color: var(--tile-ink); border-radius: 16%; display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: calc(var(--w) / var(--n) * .52); box-shadow: 0 calc(var(--w) * .012) 0 #d9c891; line-height: 1; transition: transform .08s;
   }
-  .tile.sel { background: var(--accent); color: #fff; box-shadow: 0 calc(var(--w) * .012) 0 #c44428; transform: scale(.95); }
-  .tile.good { background: var(--good); box-shadow: 0 calc(var(--w) * .012) 0 #23a36b; }
-  .tile.bad { background: var(--bad); color: #fff; box-shadow: 0 calc(var(--w) * .012) 0 #c23a4e; }
+  .grid.deal .tile { animation: deal .45s cubic-bezier(.2, 1.4, .4, 1) both; animation-delay: calc(var(--i) * 35ms); }
+  @keyframes deal { from { transform: scale(0) rotate(-25deg); opacity: 0; } }
+  .tile::after { position: absolute; top: 4%; right: 6%; font-size: calc(var(--w) / var(--n) * .17); font-weight: 900; }
+  .tile[data-m] { background: linear-gradient(160deg, #ffe58a, #ffb93d); box-shadow: 0 calc(var(--w) * .012) 0 #c98a1c; }
+  .tile[data-m]::after { content: '×' attr(data-m); color: #7a4a00; }
+  .tile.star { background: linear-gradient(160deg, #c9f3ff, #7fd4ff); box-shadow: 0 calc(var(--w) * .012) 0 #3d94c4, 0 0 calc(var(--w) * .05) #7fd4ff; animation: starpulse 1.2s ease-in-out infinite; }
+  .tile.star::after { content: '⭐×2'; color: #0c4a6e; }
+  @keyframes starpulse { 50% { transform: scale(1.05); } }
+  .tile.sel { background: var(--accent); color: #fff; box-shadow: 0 calc(var(--w) * .012) 0 #c44428; transform: scale(.93); animation: none; }
+  .tile.sel::after { color: #fff; }
+  .trail { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .trail polyline { fill: none; stroke: #fff; stroke-opacity: .55; stroke-linecap: round; stroke-linejoin: round; }
 
   /* host */
   .host { flex: 1; display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: center; max-width: 1300px; width: 100%; margin: 0 auto; }
   @media (max-width: 760px) { .host { grid-template-columns: 1fr; } }
-  .qr { background: #fff; border-radius: 20px; padding: 14px; width: min(38vh, 320px); height: min(38vh, 320px); }
+  .qr { background: #fff; border-radius: 20px; padding: 14px; width: min(34vh, 300px); height: min(34vh, 300px); }
   .qr svg { width: 100%; height: 100%; display: block; }
-  .code { font-size: clamp(48px, 9vw, 110px); font-weight: 900; letter-spacing: .14em; color: var(--gold); line-height: 1; }
+  .code { font-size: clamp(48px, 9vw, 104px); font-weight: 900; letter-spacing: .14em; color: var(--gold); line-height: 1; }
   .url { font-size: 15px; word-break: break-all; -webkit-user-select: text; user-select: text; }
   .chips { display: flex; flex-wrap: wrap; gap: 10px; }
-  .chip { background: #453b96; padding: 9px 16px; border-radius: 999px; font-weight: 800; font-size: 18px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; background: #453b96; padding: 6px 16px 6px 6px; border-radius: 999px; font-weight: 800; font-size: 18px; animation: pop .35s cubic-bezier(.2, 1.6, .4, 1) both; }
   .chip.off { opacity: .45; }
-  .chip b { color: var(--gold); margin-left: 6px; }
+  .chip b { color: var(--gold); }
+  @keyframes pop { from { transform: scale(0); } }
   .seg { display: inline-flex; background: #221c55; border-radius: 12px; padding: 4px; }
-  .seg button { border: 0; background: none; padding: 8px 14px; border-radius: 9px; font-weight: 800; color: var(--dim); cursor: pointer; }
+  .seg button { border: 0; background: none; padding: 8px 12px; border-radius: 9px; font-weight: 800; color: var(--dim); cursor: pointer; }
   .seg button.on { background: var(--accent); color: #fff; }
   .setting { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 700; }
   .timer { font-size: clamp(56px, 11vw, 150px); font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
   .timer.low { color: var(--bad); animation: pulse 1s infinite; }
   @keyframes pulse { 50% { opacity: .55; } }
   .warn { background: #5a2a3a; border-radius: 12px; padding: 10px 14px; font-size: 14px; text-align: left; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; background: #221c55; border-radius: 999px; padding: 8px 16px; font-weight: 800; }
+
+  /* round intro */
+  .intro .icon { font-size: clamp(90px, 22vw, 200px); line-height: 1; animation: drop .6s cubic-bezier(.2, 1.5, .4, 1) both; }
+  .intro h1 { font-size: clamp(40px, 9vw, 110px); font-weight: 900; color: var(--gold); animation: drop .6s .15s cubic-bezier(.2, 1.5, .4, 1) both; }
+  .intro .desc { font-size: clamp(18px, 3vw, 34px); font-weight: 700; max-width: 22em; animation: drop .6s .3s both; }
+  .intro .cd { font-size: clamp(50px, 10vw, 120px); font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums; }
+  @keyframes drop { from { transform: translateY(-40px) scale(.5); opacity: 0; } }
 
   /* results */
   .results { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
-  .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-  .pcard h3 { display: flex; justify-content: space-between; font-size: 22px; margin-bottom: 10px; }
+  .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+  .pcard { animation: rise .5s both; animation-delay: calc(var(--i) * 90ms); }
+  @keyframes rise { from { transform: translateY(30px); opacity: 0; } }
+  .pcard h3 { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 22px; margin-bottom: 10px; }
+  .pcard h3 > span:first-child { display: inline-flex; align-items: center; gap: 10px; }
   .pcard.win { outline: 3px solid var(--gold); }
+  .winner { font-size: clamp(30px, 6vw, 72px); font-weight: 900; color: var(--gold); text-align: center; animation: drop .7s cubic-bezier(.2, 1.5, .4, 1) both; }
   .words { display: flex; flex-wrap: wrap; gap: 6px; }
   .w { background: #221c55; padding: 4px 9px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+  .w.new { animation: pop .35s cubic-bezier(.2, 1.6, .4, 1) both; }
   .w.shared { text-decoration: line-through; opacity: .5; }
   .w sup { color: var(--gold); margin-left: 3px; }
+  table.stats { width: 100%; border-collapse: collapse; font-weight: 700; font-variant-numeric: tabular-nums; }
+  table.stats th { color: var(--dim); font-size: 13px; text-align: right; padding: 4px 8px; white-space: nowrap; }
+  table.stats td { text-align: right; padding: 6px 8px; border-top: 1px solid #453b96; white-space: nowrap; }
+  table.stats td:first-child { text-align: left; } table.stats td b { color: var(--gold); }
 
   /* phone */
-  .phone { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 520px; width: 100%; margin: 0 auto; }
+  .phone { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 520px; width: 100%; margin: 0 auto; }
   .phone .top { width: 100%; display: flex; justify-content: space-between; align-items: center; font-weight: 900; font-size: 26px; font-variant-numeric: tabular-nums; }
-  .cur { height: 54px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; letter-spacing: .08em; }
-  .cur.good { color: var(--good); } .cur.bad { color: var(--bad); } .cur.hint { color: var(--dim); font-size: 18px; letter-spacing: 0; font-weight: 700; }
+  .cur { height: 50px; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 900; letter-spacing: .08em; text-align: center; }
+  .cur.good { color: var(--good); animation: pop .3s cubic-bezier(.2, 1.6, .4, 1); } .cur.bad { color: var(--bad); animation: shake .3s; }
+  .cur.hint { color: var(--dim); font-size: 17px; letter-spacing: 0; font-weight: 700; }
+  @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
   .found { width: 100%; flex: 1; overflow-y: auto; align-content: flex-start; min-height: 60px; }
-  .status { position: fixed; top: 0; left: 0; right: 0; background: var(--bad); color: #fff; text-align: center; font-weight: 800; padding: 6px; font-size: 14px; z-index: 5; }
+  .status { position: fixed; top: 0; left: 0; right: 0; background: var(--bad); color: #fff; text-align: center; font-weight: 800; padding: 6px; font-size: 14px; z-index: 30; }
+  .picker { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .picker button { border: 3px solid transparent; background: none; border-radius: 50%; padding: 0; aspect-ratio: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .picker button .av { --s: 100%; width: 100%; height: 100%; font-size: 26px; opacity: .55; }
+  .picker button.on { border-color: #fff; transform: scale(1.12); } .picker button.on .av { opacity: 1; }
+  .reacts { display: flex; gap: 10px; justify-content: center; }
+  .reacts button { border: 0; background: var(--panel); border-radius: 16px; font-size: 30px; width: 56px; height: 56px; cursor: pointer; box-shadow: 0 4px 0 #1f1a4d; }
+  .reacts button:active { transform: translateY(3px) scale(.92); box-shadow: 0 1px 0 #1f1a4d; }
+
+  /* effects */
+  .float { position: fixed; transform: translate(-50%, -50%); font-weight: 900; font-size: 30px; white-space: nowrap; text-shadow: 0 2px 0 rgba(0,0,0,.35); animation: floatup 1.6s ease-out forwards; display: flex; align-items: center; gap: 8px; }
+  @keyframes floatup { 0% { opacity: 0; transform: translate(-50%, -20%) scale(.5); } 15% { opacity: 1; transform: translate(-50%, -70%) scale(1.2); } 100% { opacity: 0; transform: translate(-50%, -340%) scale(1); } }
+  .float.react { font-size: 64px; animation: floatfar 2.6s ease-out forwards; }
+  @keyframes floatfar { 0% { opacity: 0; transform: translate(-50%, 0) scale(.4); } 12% { opacity: 1; transform: translate(-50%, -8vh) scale(1.2) rotate(-8deg); } 100% { opacity: 0; transform: translate(-50%, -70vh) scale(1) rotate(10deg); } }
+  .float.banner { font-size: clamp(20px, 3.2vw, 42px); background: var(--gold); color: #2a2147; text-shadow: none; padding: 10px 24px; border-radius: 999px; animation: banner 2.6s forwards; }
+  @keyframes banner { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 20%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -120%) scale(.9); } }
+  .conf { position: fixed; top: -24px; width: 10px; height: 16px; border-radius: 2px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translate(var(--dx), 112vh) rotate(var(--rot)); } }
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div id="fx"></div>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 'use strict';
-const app = document.getElementById('app');
-const PREFIX = 'wordstorm-v1-';
+const app = document.getElementById('app'), fx = document.getElementById('fx');
+const PREFIX = 'wordstorm-v2-';
 const params = new URLSearchParams(location.search);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = {
@@ -106,9 +156,37 @@ const store = {
 };
 const scoreFor = len => len >= 8 ? 11 : len === 7 ? 5 : len === 6 ? 3 : len === 5 ? 2 : 1;
 const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const ord = n => n + (['st', 'nd', 'rd'][n - 1] || 'th');
+const rnd = n => Math.floor(Math.random() * n);
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const LOGO = '<div class="logo">WORD<span>STORM</span></div>';
-const gridHtml = (grid, size, w) =>
-  `<div class="grid" style="--n:${size};--w:${w}">${grid.map((c, i) => `<div class="tile" data-i="${i}">${c === 'QU' ? 'Qu' : c}</div>`).join('')}</div>`;
+
+const CHARS = [
+  { e: '🦊', n: 'Zippy', c: '#ff8a3d' }, { e: '🐙', n: 'Inky', c: '#c86bff' }, { e: '🦖', n: 'Rexy', c: '#4fd16a' }, { e: '🐸', n: 'Hopper', c: '#8bd93b' },
+  { e: '🦉', n: 'Hoot', c: '#b98a5a' }, { e: '🐼', n: 'Bamboo', c: '#9fb4c7' }, { e: '🦄', n: 'Sparkle', c: '#ff7ac8' }, { e: '🐝', n: 'Buzz', c: '#ffd23d' },
+  { e: '🐧', n: 'Waddles', c: '#5aa9ff' }, { e: '🦁', n: 'Roary', c: '#ffb13d' }, { e: '🐢', n: 'Shelly', c: '#2fc4a6' }, { e: '🤖', n: 'Bolt', c: '#7f8cff' },
+];
+const avatar = (ch, size) => { const c = CHARS[ch] || CHARS[0]; return `<span class="av" style="background:${c.c};--s:${size || 34}px">${c.e}</span>`; };
+const TYPES = {
+  classic: { icon: '🎯', name: 'Classic', desc: 'Find as many words as you can. Watch for the ⭐ star tile — it doubles your word.' },
+  gold: { icon: '💰', name: 'Gold Rush', desc: 'Gold tiles multiply the score of any word that uses them.' },
+  big: { icon: '🦕', name: 'Big Words', desc: '4 letters or more — and every word scores double.' },
+  lightning: { icon: '⚡', name: 'Lightning', desc: 'Half the time, double the points. Go!' },
+  scramble: { icon: '🌪️', name: 'Scramble', desc: 'The grid reshuffles halfway through. Keep up!' },
+};
+const REACTS = ['😂', '👏', '🔥', '😱', '🎉'];
+
+const gridHtml = (grid, size, w, mult, star, deal) =>
+  `<div class="gridwrap" style="--w:${w}"><div class="grid ${deal ? 'deal' : ''}" style="--n:${size};--w:${w}">${grid.map((c, i) =>
+    `<div class="tile ${i === star ? 'star' : ''}" data-i="${i}" ${mult && mult[i] > 1 ? `data-m="${mult[i]}"` : ''} style="--i:${i}">${c === 'QU' ? 'Qu' : c}</div>`).join('')}</div><svg class="trail"><polyline/></svg></div>`;
+const introHtml = r => { const t = TYPES[r.type]; return `<div class="center intro"><p class="dim" style="font-size:22px;font-weight:800">Round ${r.n} of ${r.total}</p>
+  <div class="icon">${t.icon}</div><h1>${t.name}</h1><p class="desc">${t.desc}</p><div class="cd" id="cd"></div></div>`; };
+let cdT = null;
+function runCountdown(endLocal) {
+  clearInterval(cdT);
+  const up = () => { const el = document.getElementById('cd'); if (!el) return clearInterval(cdT); const n = Math.ceil((endLocal - performance.now()) / 1000); const txt = n > 0 ? String(n) : 'GO!'; if (el.textContent !== txt) { el.textContent = txt; if (n <= 3) Sound.tick(); } };
+  up(); cdT = setInterval(up, 100);
+}
 
 function neighbors(size) {
   const out = [];
@@ -121,6 +199,39 @@ function neighbors(size) {
     out.push(n);
   }
   return out;
+}
+
+/* ---------------- sound + effects ---------------- */
+const Sound = {
+  ctx: null,
+  init() { if (!this.ctx) try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {}); },
+  tone(f, d, type, v, when) {
+    const c = this.ctx; if (!c || c.state !== 'running') return;
+    const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + (when || 0);
+    o.type = type || 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(v || .12, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + d);
+  },
+  good(big) { (big ? [523, 659, 784, 1047] : [523, 784]).forEach((f, i) => this.tone(f, .14, 'triangle', .14, i * .07)); },
+  bad() { this.tone(150, .2, 'sawtooth', .07); },
+  tick() { this.tone(880, .06, 'square', .04); },
+  pop() { this.tone(660, .07, 'sine', .06); },
+  end() { [392, 330, 262].forEach((f, i) => this.tone(f, .3, 'triangle', .14, i * .16)); },
+  fanfare() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => this.tone(f, .28, 'triangle', .14, i * .13)); },
+};
+document.addEventListener('pointerdown', () => Sound.init(), true);
+function floatUp(html, x, y, cls) {
+  const d = document.createElement('div'); d.className = 'float ' + (cls || ''); d.innerHTML = html;
+  d.style.left = x + 'px'; d.style.top = y + 'px'; fx.appendChild(d);
+  d.addEventListener('animationend', () => d.remove());
+}
+function confetti(n) {
+  const cols = ['#ff6b4a', '#ffd166', '#3ddc97', '#5aa9ff', '#ff7ac8', '#c86bff'];
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div'); d.className = 'conf';
+    d.style.cssText = `left:${Math.random() * 100}vw;background:${cols[i % cols.length]};animation-duration:${1.6 + Math.random() * 1.8}s;animation-delay:${Math.random() * .5}s;--dx:${(Math.random() - .5) * 30}vw;--rot:${(Math.random() - .5) * 1440}deg`;
+    fx.appendChild(d); d.addEventListener('animationend', () => d.remove());
+  }
 }
 
 /* ---------------- dictionary + board (host only) ---------------- */
@@ -154,12 +265,12 @@ function solve(grid, size) {
 }
 const WEIGHTS = { E: 12, A: 9, I: 8, O: 8, T: 7, N: 6, R: 6, S: 6, L: 4, D: 4, U: 4, G: 3, C: 3, M: 3, P: 3, H: 3, B: 2, F: 2, Y: 2, W: 2, K: 1, V: 1, X: 1, Z: 1, J: 1, QU: 1 };
 const BAG = Object.entries(WEIGHTS).flatMap(([l, n]) => Array(n).fill(l));
-function newBoard(size) {
-  const want = size === 4 ? 70 : 160;
+function newBoard(size, minLen) {
+  const want = (size === 4 ? 70 : 160) * (minLen > 3 ? .6 : 1);
   let best = null;
   for (let t = 0; t < 25; t++) {
-    const grid = Array.from({ length: size * size }, () => BAG[Math.floor(Math.random() * BAG.length)]);
-    const words = solve(grid, size);
+    const grid = Array.from({ length: size * size }, () => BAG[rnd(BAG.length)]);
+    const words = new Set([...solve(grid, size)].filter(w => w.length >= minLen));
     if (!best || words.size > best.words.size) best = { grid, words };
     if (words.size >= want) break;
   }
@@ -169,8 +280,9 @@ function newBoard(size) {
 /* ---------------- HOST ---------------- */
 const Host = {
   peer: null, code: '', players: new Map(), phase: 'lobby', net: 'Connecting…', dict: 'loading',
-  settings: { size: 4, secs: 120, minLen: 3, cancel: true },
-  grid: [], words: new Set(), endsAt: 0, tick: null, results: null,
+  settings: { size: 4, secs: 120, minLen: 3, cancel: true, rounds: 3, mix: true },
+  game: { n: 0, total: 3, order: [] }, round: null, grid: [], mult: [], star: -1, nb: [], words: new Set(),
+  endsAt: 0, introEnd: 0, tick: null, starT: null, introT: null, scrambled: false, results: null, lastSec: -1,
 
   start() {
     try { Object.assign(this.settings, JSON.parse(store.get('ws-settings') || '{}')); } catch {}
@@ -181,9 +293,14 @@ const Host = {
       const b = e.target.closest('[data-act]'); if (!b) return;
       const a = b.dataset.act;
       if (a === 'set') { this.settings[b.dataset.k] = JSON.parse(b.dataset.v); store.set('ws-settings', JSON.stringify(this.settings)); this.render(); }
-      if (a === 'start') this.startRound();
+      if (a === 'start') this.startGame();
+      if (a === 'next') this.nextRound();
       if (a === 'end') this.finish();
       if (a === 'lobby') { this.phase = 'lobby'; this.broadcast(); this.render(); }
+      if (a === 'clearstats' && confirm("Reset this group's record? This can't be undone.")) {
+        const all = this.allStats(); delete all[this.groupKey([...this.players.values()].map(p => p.name))];
+        store.set('ws-stats', JSON.stringify(all)); this.render();
+      }
     });
     const lock = () => navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {});
     lock(); document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && lock());
@@ -191,94 +308,191 @@ const Host = {
   open() {
     let saved = null; try { saved = sessionStorage.getItem('ws-code'); } catch {}
     const A = 'BCDFGHJKLMNPQRSTVWXZ';
-    this.code = saved || Array.from({ length: 4 }, () => A[Math.floor(Math.random() * A.length)]).join('');
+    this.code = saved || Array.from({ length: 4 }, () => A[rnd(A.length)]).join('');
     const peer = this.peer = new Peer(PREFIX + this.code);
     peer.on('open', () => { try { sessionStorage.setItem('ws-code', this.code); } catch {} this.net = ''; this.render(); });
-    peer.on('disconnected', () => { this.net = 'Reconnecting…'; this.render(); setTimeout(() => !peer.destroyed && peer.reconnect(), 1500); });
+    peer.on('disconnected', () => { this.net = 'Reconnecting…'; this.showNet(); setTimeout(() => !peer.destroyed && peer.reconnect(), 1500); });
     peer.on('error', err => {
       if (err.type === 'unavailable-id') { try { sessionStorage.removeItem('ws-code'); } catch {} peer.destroy(); this.open(); return; }
       if (err.type === 'peer-unavailable') return;
-      this.net = 'Connection problem (' + err.type + ')'; this.render();
+      this.net = 'Connection problem (' + err.type + ')'; this.showNet();
     });
     peer.on('connection', conn => {
-      let p = null;
+      let p = null, lastReact = 0;
       conn.on('data', m => {
         if (!m || typeof m !== 'object') return;
         if (m.t === 'hello') {
           const id = String(m.id || '').slice(0, 40); if (!id) return;
-          const name = String(m.name || 'Player').trim().slice(0, 14) || 'Player';
-          p = this.players.get(id) || { id, words: [] };
+          let name = String(m.name || 'Player').trim().slice(0, 14) || 'Player';
+          const taken = n => [...this.players.values()].some(x => x.id !== id && x.name.toLowerCase() === n.toLowerCase());
+          for (let k = 2; taken(name); k++) name = name.replace(/ \d+$/, '') + ' ' + k;
+          p = this.players.get(id) || { id, words: [], total: 0 };
           if (p.conn && p.conn !== conn) try { p.conn.close(); } catch {}
-          Object.assign(p, { name, conn, on: true });
+          Object.assign(p, { name, conn, on: true, ch: Math.max(0, Math.min(CHARS.length - 1, m.ch | 0)) });
+          const isNew = !this.players.has(id);
           this.players.set(id, p);
-          if (this.phase === 'play') this.send(p); else this.broadcast();
-          this.render();
-        } else if (m.t === 'word' && p) this.onWord(p, m.w);
+          if (this.phase === 'lobby') { this.broadcast(); this.render(); if (isNew) Sound.pop(); }
+          else { this.send(p); if (this.phase !== 'intro') this.render(); }
+        } else if (m.t === 'word' && p) this.onWord(p, m.path);
+        else if (m.t === 'react' && p && Date.now() - lastReact > 350) {
+          lastReact = Date.now();
+          const e = REACTS[m.e | 0]; if (!e) return;
+          floatUp(`${e}`, innerWidth * (.1 + Math.random() * .8), innerHeight - 40, 'react'); Sound.pop();
+        }
       });
       const gone = () => {
         if (!p || p.conn !== conn) return;
         p.on = false;
-        if (this.phase === 'lobby') { this.players.delete(p.id); this.broadcast(); }
-        this.render();
+        if (this.phase === 'lobby') { this.players.delete(p.id); this.broadcast(); this.render(); }
+        else { const el = document.querySelector(`[data-p="${CSS.escape(p.id)}"]`); if (el) el.classList.add('off'); }
       };
       conn.on('close', gone); conn.on('error', gone);
     });
   },
-  stateFor(p) {
-    const s = this.settings;
-    return {
-      t: 'state', phase: this.phase, size: s.size, minLen: s.minLen, grid: this.phase === 'lobby' ? [] : this.grid,
-      remainingMs: this.phase === 'play' ? this.endsAt - Date.now() : 0,
-      found: p.words.map(w => ({ w, pts: scoreFor(w.length) })),
-      players: [...this.players.values()].map(x => x.name), results: this.phase === 'results' ? this.results : null, you: p.id,
-    };
+  showNet() {
+    let el = document.getElementById('net');
+    if (!el) { el = document.createElement('div'); el.id = 'net'; el.className = 'status'; document.body.appendChild(el); }
+    el.textContent = this.net; el.style.display = this.net ? '' : 'none';
+  },
+  stateFor(p, extra) {
+    const hidden = this.phase === 'lobby' || this.phase === 'intro';
+    return Object.assign({
+      t: 'state', phase: this.phase, size: this.settings.size, round: this.round, grid: hidden ? [] : this.grid, mult: hidden ? [] : this.mult, star: this.star,
+      remainingMs: this.phase === 'play' ? this.endsAt - Date.now() : 0, introMs: this.phase === 'intro' ? this.introEnd - Date.now() : 0,
+      found: p.words.map(x => ({ w: x.w, pts: x.pts })), total: p.total,
+      players: [...this.players.values()].map(x => ({ name: x.name, ch: x.ch })), results: this.phase === 'results' ? this.results : null, you: p.id,
+    }, extra);
   },
   send(p, msg) { if (p.conn && p.conn.open) try { p.conn.send(msg || this.stateFor(p)); } catch {} },
-  broadcast() { for (const p of this.players.values()) this.send(p); },
-  startRound() {
+  broadcast(extra) { for (const p of this.players.values()) this.send(p, extra && extra.t ? extra : this.stateFor(p, extra)); },
+  startGame() {
     if (!trie) return;
-    const s = this.settings, b = newBoard(s.size);
-    this.grid = b.grid;
-    this.words = new Set([...b.words].filter(w => w.length >= s.minLen));
+    const s = this.settings, others = shuffle(Object.keys(TYPES).filter(t => t !== 'classic'));
+    const order = s.mix ? ['classic', ...others, ...shuffle(others)] : [];
+    this.game = { n: 0, total: s.rounds, order: Array.from({ length: s.rounds }, (_, i) => s.mix ? order[i % order.length] : 'classic') };
+    for (const p of this.players.values()) { p.total = 0; p.best = ''; }
+    this.nextRound();
+  },
+  nextRound() {
+    if (!trie || this.game.n >= this.game.total) return this.startGame();
+    const s = this.settings, type = this.game.order[this.game.n++];
+    const minLen = type === 'big' ? Math.max(4, s.minLen) : s.minLen;
+    const secs = type === 'lightning' ? Math.round(s.secs / 2) : s.secs;
+    this.round = { n: this.game.n, total: this.game.total, type, minLen, secs, x: type === 'big' || type === 'lightning' ? 2 : 1 };
+    this.setBoard();
     for (const p of this.players.values()) p.words = [];
-    this.phase = 'play'; this.endsAt = Date.now() + s.secs * 1000; this.results = null;
-    clearInterval(this.tick);
+    this.star = -1; this.scrambled = false; this.results = null; this.lastSec = -1;
+    this.phase = 'intro'; this.introEnd = Date.now() + 5000;
+    clearInterval(this.tick); clearInterval(this.starT); clearTimeout(this.introT);
+    this.introT = setTimeout(() => this.beginPlay(), 5000);
+    this.broadcast(); this.render();
+  },
+  setBoard() {
+    const s = this.settings, b = newBoard(s.size, this.round.minLen);
+    this.grid = b.grid; this.words = b.words; this.nb = neighbors(s.size);
+    this.mult = this.grid.map(() => 1);
+    if (this.round.type === 'gold') shuffle(this.grid.map((_, i) => i)).slice(0, 3).forEach((i, k) => this.mult[i] = k === 2 ? 3 : 2);
+  },
+  beginPlay() {
+    if (this.phase !== 'intro') return;
+    this.phase = 'play'; this.endsAt = Date.now() + this.round.secs * 1000;
+    if (this.round.type !== 'gold') { this.star = rnd(this.grid.length); this.starT = setInterval(() => this.moveStar(), 12000); }
     this.tick = setInterval(() => {
       const left = this.endsAt - Date.now(), el = document.getElementById('timer');
       if (el) { el.textContent = fmt(left); el.classList.toggle('low', left <= 10000); }
+      const sec = Math.ceil(left / 1000);
+      if (sec <= 5 && sec > 0 && sec !== this.lastSec) { this.lastSec = sec; Sound.tick(); }
+      if (this.round.type === 'scramble' && !this.scrambled && left <= this.round.secs * 500) {
+        this.scrambled = true; this.setBoard(); this.broadcast({ shuffle: true }); this.render();
+        floatUp('🌪️ SCRAMBLE!', innerWidth / 2, innerHeight / 2, 'banner'); Sound.good(true);
+      }
       if (left <= 0) this.finish();
     }, 200);
     this.broadcast(); this.render();
   },
-  onWord(p, w) {
-    w = String(w || '').toUpperCase().slice(0, 40);
+  moveStar() {
+    let i; do { i = rnd(this.grid.length); } while (i === this.star);
+    this.star = i; this.broadcast({ t: 'star', i });
+    document.querySelectorAll('.grid .tile').forEach((t, k) => t.classList.toggle('star', k === i));
+  },
+  onWord(p, path) {
+    const g = this.grid; let w = '';
     const no = reason => this.send(p, { t: 'wr', w, ok: false, reason });
     if (this.phase !== 'play' || Date.now() > this.endsAt + 800) return no("Time's up");
-    if (w.length < this.settings.minLen) return no('Too short');
-    if (p.words.includes(w)) return no('Already found');
+    if (!Array.isArray(path) || path.length < 2 || path.length > g.length) return no('Not a word');
+    const seen = new Set();
+    for (let k = 0; k < path.length; k++) {
+      const i = path[k];
+      if (!Number.isInteger(i) || i < 0 || i >= g.length || seen.has(i) || (k && !this.nb[path[k - 1]].includes(i))) return no('Not a word');
+      seen.add(i); w += g[i];
+    }
+    if (w.length < this.round.minLen) return no('Too short');
+    if (p.words.some(x => x.w === w)) return no('Already found');
     if (!this.words.has(w)) return no('Not a word');
-    p.words.push(w);
-    this.send(p, { t: 'wr', w, ok: true, pts: scoreFor(w.length) });
-    const el = document.querySelector(`[data-count="${CSS.escape(p.id)}"]`); if (el) el.textContent = p.words.length;
+    let m = this.round.x; const tags = [];
+    let gold = 1; for (const i of path) gold *= this.mult[i];
+    if (gold > 1) { m *= gold; tags.push('💰×' + gold); }
+    if (seen.has(this.star)) { m *= 2; tags.push('⭐×2'); }
+    let pts = scoreFor(w.length) * m;
+    const lucky = Math.random() < .1;
+    if (lucky) { pts += 3; tags.push('🍀+3'); }
+    p.words.push({ w, pts });
+    if (w.length > (p.best || '').length) p.best = w;
+    this.send(p, { t: 'wr', w, ok: true, pts, tags, lucky });
+    const chip = document.querySelector(`[data-p="${CSS.escape(p.id)}"]`), r = chip && chip.getBoundingClientRect();
+    const b = chip && chip.querySelector('b'); if (b) b.textContent = p.words.length;
+    floatUp(`${avatar(p.ch, 30)} +${pts}${lucky ? ' 🍀' : ''}`, r ? r.left + r.width / 2 : innerWidth / 2, r ? r.top : innerHeight / 2);
+    Sound.pop();
+    if (w.length >= 6) { floatUp(`${avatar(p.ch, 40)} ${esc(p.name)} found a ${w.length}-letter word!`, innerWidth / 2, innerHeight * .2, 'banner'); Sound.good(true); }
   },
   finish() {
     if (this.phase !== 'play') return;
-    clearInterval(this.tick);
-    this.phase = 'results';
-    const counts = new Map();
-    for (const p of this.players.values()) for (const w of p.words) counts.set(w, (counts.get(w) || 0) + 1);
+    clearInterval(this.tick); clearInterval(this.starT);
+    this.phase = 'results'; this.star = -1;
+    const cancel = this.settings.cancel, counts = new Map();
+    for (const p of this.players.values()) for (const x of p.words) counts.set(x.w, (counts.get(x.w) || 0) + 1);
     const table = [...this.players.values()].map(p => {
-      const words = p.words.map(w => { const shared = counts.get(w) > 1; return { w, shared, pts: shared && this.settings.cancel ? 0 : scoreFor(w.length) }; })
+      const words = p.words.map(x => { const shared = counts.get(x.w) > 1; return { w: x.w, shared, pts: shared && cancel ? 0 : x.pts }; })
         .sort((a, b) => b.pts - a.pts || b.w.length - a.w.length || a.w.localeCompare(b.w));
-      return { id: p.id, name: p.name, words, score: words.reduce((n, x) => n + x.pts, 0) };
-    }).sort((a, b) => b.score - a.score);
-    const missedAll = [...this.words].filter(w => !counts.has(w)).sort((a, b) => b.length - a.length || a.localeCompare(b));
-    this.results = { table, missed: missedAll.slice(0, 36), total: this.words.size, foundCount: counts.size, cancel: this.settings.cancel };
+      const score = words.reduce((n, x) => n + x.pts, 0);
+      p.total += score;
+      return { id: p.id, name: p.name, ch: p.ch, words, score, total: p.total, best: p.best || '' };
+    }).sort((a, b) => b.total - a.total || b.score - a.score);
+    const final = this.game.n >= this.game.total;
+    const missed = [...this.words].filter(w => !counts.has(w)).sort((a, b) => b.length - a.length || a.localeCompare(b)).slice(0, 30);
+    this.results = { round: this.round, final, stats: final ? this.recordGame(table) : null, table, missed, total: this.words.size, foundCount: [...counts.keys()].filter(w => this.words.has(w)).length, cancel };
     this.broadcast(); this.render();
+    if (this.results.final) { confetti(140); Sound.fanfare(); } else Sound.end();
+  },
+  /* running record for each distinct group of players, kept on this device and matched by name */
+  allStats() { try { return JSON.parse(store.get('ws-stats') || '{}') || {}; } catch { return {}; } },
+  groupKey(names) { return names.map(n => n.trim().toLowerCase()).sort().join('|'); },
+  recordGame(table) {
+    if (!table.length) return null;
+    const all = this.allStats(), key = this.groupKey(table.map(r => r.name));
+    const g = all[key] || { games: 0, p: {} }, top = table[0].total, winners = table.filter(r => r.total === top && top > 0);
+    g.games++; g.last = Date.now();
+    for (const r of table) {
+      const k = r.name.trim().toLowerCase(), e = g.p[k] || { wins: 0, ties: 0, points: 0, best: 0, word: '' };
+      e.name = r.name; e.ch = r.ch; e.points += r.total; e.best = Math.max(e.best, r.total);
+      if (r.best.length > e.word.length) e.word = r.best;
+      if (winners.includes(r)) winners.length === 1 ? e.wins++ : e.ties++;
+      g.p[k] = e;
+    }
+    all[key] = g; store.set('ws-stats', JSON.stringify(all));
+    return g;
+  },
+  statsHtml(g) {
+    const rows = Object.values(g.p).sort((a, b) => b.wins - a.wins || b.points - a.points);
+    const title = rows.length > 1 ? rows.map(e => esc(e.name)).join(' vs ') : esc(rows[0].name) + ' (solo)';
+    return `<div class="card stack"><h3>📊 ${title} <span class="dim">· ${g.games} game${g.games === 1 ? '' : 's'} played</span></h3>
+      <div style="overflow-x:auto"><table class="stats"><tr><th></th><th>Won</th><th>Lost</th><th>Tied</th><th>Win %</th><th>Avg pts</th><th>Best game</th><th>Longest word</th></tr>
+      ${rows.map(e => `<tr><td><span style="display:inline-flex;align-items:center;gap:8px">${avatar(e.ch, 28)}${esc(e.name)}</span></td><td><b>${e.wins}</b></td><td>${g.games - e.wins - e.ties}</td><td>${e.ties}</td>
+        <td>${Math.round(e.wins / g.games * 100)}%</td><td>${Math.round(e.points / g.games)}</td><td>${e.best}</td><td>${e.word || '–'}</td></tr>`).join('')}</table></div></div>`;
   },
   render() {
     const s = this.settings, players = [...this.players.values()];
-    const net = this.net ? `<div class="status">${esc(this.net)}</div>` : '';
+    this.showNet();
     if (this.phase === 'lobby') {
       const url = location.origin + location.pathname + '?join=' + this.code;
       const local = /^(localhost|127\.|\[::1\])/.test(location.hostname);
@@ -287,52 +501,64 @@ const Host = {
       const seg = (k, opts) => `<div class="seg">${opts.map(([v, label]) =>
         `<button data-act="set" data-k="${k}" data-v='${JSON.stringify(v)}' class="${s[k] === v ? 'on' : ''}">${label}</button>`).join('')}</div>`;
       const ready = this.dict === 'ready' && players.length > 0 && !this.net;
-      app.innerHTML = `${net}<div class="host">
+      const past = players.length ? this.allStats()[this.groupKey(players.map(p => p.name))] : null;
+      app.innerHTML = `<div class="host">
         <div class="stack" style="align-items:center;text-align:center">
           ${LOGO}
           <p class="dim" style="font-size:20px;font-weight:700">Scan to join on your phone</p>
           <div class="qr">${qr}</div>
           <div class="code">${this.code}</div>
           <p class="dim url">${esc(url)}</p>
-          ${local ? `<div class="warn">This page is open at a <b>localhost</b> address, which phones can't reach. Open it using this computer's network address (or a hosted URL) so the QR code works.</div>` : ''}
+          ${local ? `<div class="warn">This page is open at a <b>localhost</b> address, which phones can't reach. Open it using a hosted URL so the QR code works.</div>` : ''}
         </div>
         <div class="stack">
           <div class="card stack">
             <h2>Players <span class="dim">(${players.length})</span></h2>
-            <div class="chips">${players.map(p => `<div class="chip">${esc(p.name)}</div>`).join('') || '<span class="dim">Waiting for players to join…</span>'}</div>
+            <div class="chips">${players.map(p => `<div class="chip">${avatar(p.ch)}${esc(p.name)}</div>`).join('') || '<span class="dim">Waiting for players to join…</span>'}</div>
           </div>
+          ${past ? this.statsHtml(past) + `<button class="btn ghost small" data-act="clearstats" style="align-self:flex-end">Reset this group's record</button>` : ''}
           <div class="card stack">
+            <div class="setting">Rounds${seg('rounds', [[1, '1'], [3, '3'], [5, '5']])}</div>
+            <div class="setting">Round types ${seg('mix', [[true, 'Mixed'], [false, 'Classic only']])}</div>
             <div class="setting">Grid ${seg('size', [[4, '4 × 4'], [5, '5 × 5']])}</div>
             <div class="setting">Round time ${seg('secs', [[60, '1 min'], [120, '2 min'], [180, '3 min']])}</div>
             <div class="setting">Shortest word ${seg('minLen', [[3, '3 letters'], [4, '4 letters']])}</div>
             <div class="setting">Words found by 2+ players ${seg('cancel', [[true, 'Score 0'], [false, 'Still score']])}</div>
           </div>
-          <button class="btn" data-act="start" ${ready ? '' : 'disabled'}>${this.dict === 'loading' ? 'Loading dictionary…' : this.dict !== 'ready' ? 'Dictionary failed to load' : 'Start round'}</button>
+          <button class="btn" data-act="start" ${ready ? '' : 'disabled'}>${this.dict === 'loading' ? 'Loading dictionary…' : this.dict !== 'ready' ? 'Dictionary failed to load' : 'Start game'}</button>
         </div>
       </div>`;
+    } else if (this.phase === 'intro') {
+      app.innerHTML = introHtml(this.round);
+      runCountdown(performance.now() + (this.introEnd - Date.now()));
     } else if (this.phase === 'play') {
-      app.innerHTML = `${net}<div class="host">
-        <div style="display:flex;justify-content:center">${gridHtml(this.grid, s.size, 'min(82vh, 54vw, 760px)')}</div>
+      const r = this.round, t = TYPES[r.type];
+      app.innerHTML = `<div class="host">
+        <div style="display:flex;justify-content:center">${gridHtml(this.grid, s.size, 'min(82vh, 54vw, 760px)', this.mult, this.star, true)}</div>
         <div class="stack" style="align-items:center;text-align:center">
-          ${LOGO}
+          <div class="badge" style="font-size:22px">${t.icon} ${t.name} · Round ${r.n} of ${r.total}</div>
           <div class="timer" id="timer">${fmt(this.endsAt - Date.now())}</div>
-          <p class="dim" style="font-weight:700">${this.words.size} words hiding in this grid · code <b style="color:var(--gold)">${this.code}</b></p>
-          <div class="chips" style="justify-content:center">${players.map(p => `<div class="chip ${p.on ? '' : 'off'}">${esc(p.name)}<b data-count="${esc(p.id)}">${p.words.length}</b></div>`).join('')}</div>
+          <p class="dim" style="font-weight:700">${this.words.size} words hiding in this grid${r.x > 1 ? ' · all words ×' + r.x : ''}</p>
+          <div class="chips" style="justify-content:center">${players.map(p => `<div class="chip ${p.on ? '' : 'off'}" data-p="${esc(p.id)}">${avatar(p.ch)}${esc(p.name)} <b>${p.words.length}</b></div>`).join('')}</div>
           <button class="btn ghost small" data-act="end">End round now</button>
         </div>
       </div>`;
     } else {
-      const r = this.results, top = r.table.length ? r.table[0].score : 0;
-      app.innerHTML = `${net}<div class="results">
+      const r = this.results, t = TYPES[r.round.type], top = r.table.length ? r.table[0].total : 0;
+      const winners = r.table.filter(p => p.total === top && top > 0);
+      app.innerHTML = `<div class="results">
         <div class="row" style="justify-content:space-between">${LOGO}
-          <div class="row"><button class="btn ghost" data-act="lobby">Lobby</button><button class="btn" data-act="start">Play again</button></div></div>
-        <p class="dim" style="font-weight:700">${r.foundCount} of ${r.total} possible words found${r.cancel ? ' · crossed-out words were found by more than one player' : ''}</p>
-        <div class="board">${r.table.map((p, i) => `<div class="card pcard ${p.score === top && top > 0 ? 'win' : ''}">
-          <h3><span>${p.score === top && top > 0 ? '🏆 ' : (i + 1) + '. '}${esc(p.name)}</span><span style="color:var(--gold)">${p.score}</span></h3>
+          <div class="row"><button class="btn ghost" data-act="lobby">Lobby</button>
+          <button class="btn" data-act="${r.final ? 'start' : 'next'}">${r.final ? 'New game' : 'Next round'}</button></div></div>
+        ${r.final && winners.length ? `<div class="winner">🏆 ${winners.length > 1 ? "It's a tie: " : ''}${winners.map(p => esc(p.name)).join(' & ')} ${winners.length > 1 ? '' : 'wins!'}</div>` : ''}
+        <p class="dim" style="font-weight:700">${t.icon} ${t.name} · Round ${r.round.n} of ${r.round.total} · ${r.foundCount} of ${r.total} possible words found${r.cancel ? ' · crossed-out words were found by more than one player' : ''}</p>
+        <div class="board">${r.table.map((p, i) => `<div class="card pcard ${p.total === top && top > 0 ? 'win' : ''}" style="--i:${i}">
+          <h3><span>${avatar(p.ch, 44)}${esc(p.name)}</span><span><span class="dim" style="font-size:16px">+${p.score}</span> <span style="color:var(--gold)">${p.total}</span></span></h3>
           <div class="words">${p.words.map(x => `<span class="w ${x.shared && r.cancel ? 'shared' : ''}">${x.w}<sup>${x.pts || ''}</sup></span>`).join('') || '<span class="dim">No words</span>'}</div>
         </div>`).join('')}</div>
+        ${r.stats ? this.statsHtml(r.stats) : ''}
         ${r.missed.length ? `<div class="card stack"><h3>Longest words nobody found</h3><div class="words">${r.missed.map(w => `<span class="w">${w}</span>`).join('')}</div></div>` : ''}
-        <div style="display:flex;justify-content:center;padding:8px">${gridHtml(this.grid, s.size, 'min(40vh, 60vw, 320px)')}</div>
+        <div style="display:flex;justify-content:center;padding:8px">${gridHtml(this.grid, s.size, 'min(36vh, 60vw, 300px)', this.mult, -1)}</div>
       </div>`;
     }
   },
@@ -340,14 +566,22 @@ const Host = {
 
 /* ---------------- PLAYER ---------------- */
 const Player = {
-  id: '', name: '', code: '', peer: null, conn: null, st: null, net: 'Connecting…', path: [], found: [], endLocal: 0, tick: null, flashT: null, retry: null, nb: [],
+  id: '', name: '', ch: 0, code: '', peer: null, conn: null, st: null, net: 'Connecting…', path: [], found: [],
+  endLocal: 0, introEnd: 0, tick: null, flashT: null, retry: null, nb: [],
 
-  start(code, name) {
-    this.code = code; this.name = name;
-    this.id = store.get('ws-id') || (Math.random().toString(36).slice(2) + Date.now().toString(36));
-    store.set('ws-id', this.id); store.set('ws-name', name);
+  start(code, name, ch) {
+    this.code = code; this.name = name; this.ch = ch;
+    let id = null; try { id = sessionStorage.getItem('ws-id'); } catch {}
+    this.id = id || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+    try { sessionStorage.setItem('ws-id', this.id); } catch {}
+    store.set('ws-name', name); store.set('ws-ch', ch);
     this.connect(); this.render();
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !(this.conn && this.conn.open)) this.connect(); });
+    app.addEventListener('click', e => {
+      const b = e.target.closest('[data-react]'); if (!b) return;
+      if (this.conn && this.conn.open) this.conn.send({ t: 'react', e: +b.dataset.react });
+      const r = b.getBoundingClientRect(); floatUp(REACTS[+b.dataset.react], r.left + r.width / 2, r.top); Sound.pop();
+    });
   },
   connect() {
     clearTimeout(this.retry);
@@ -356,7 +590,7 @@ const Player = {
     const peer = this.peer = new Peer();
     peer.on('open', () => {
       const conn = this.conn = peer.connect(PREFIX + this.code, { reliable: true });
-      conn.on('open', () => { this.net = ''; this.showNet(); conn.send({ t: 'hello', id: this.id, name: this.name }); });
+      conn.on('open', () => { this.net = ''; this.showNet(); conn.send({ t: 'hello', id: this.id, name: this.name, ch: this.ch }); });
       conn.on('data', m => this.onData(m));
       conn.on('close', () => again('Reconnecting…', 1500));
       conn.on('error', () => again('Reconnecting…', 1500));
@@ -372,31 +606,55 @@ const Player = {
   onData(m) {
     if (!m || typeof m !== 'object') return;
     if (m.t === 'state') {
-      this.st = m; this.found = m.found || []; this.path = [];
+      const prev = this.st && this.st.phase;
+      this.st = m; this.found = (m.found || []).slice().reverse(); this.path = [];
       if (m.phase === 'play') { this.endLocal = performance.now() + m.remainingMs; this.nb = neighbors(m.size); }
-      this.render();
+      if (m.phase === 'intro') this.introEnd = performance.now() + m.introMs;
+      this.render(prev !== m.phase || m.shuffle);
+      if (m.shuffle) { this.flash('🌪️ New grid!', 'good'); Sound.good(true); }
+      if (m.phase === 'results' && prev === 'play') {
+        const me = m.results.table.find(p => p.id === m.you), top = m.results.table[0];
+        if (m.results.final && me && top && me.total === top.total && top.total > 0) { confetti(90); Sound.fanfare(); } else Sound.end();
+      }
+    } else if (m.t === 'star') {
+      if (this.st) this.st.star = m.i;
+      document.querySelectorAll('.grid .tile').forEach((t, k) => t.classList.toggle('star', k === m.i));
     } else if (m.t === 'wr') {
-      if (m.ok) { this.found.unshift({ w: m.w, pts: m.pts }); this.renderFound(); this.flash(`${m.w}  +${m.pts}`, 'good'); }
-      else this.flash(m.reason, 'bad');
+      if (m.ok) {
+        this.found.unshift({ w: m.w, pts: m.pts }); this.renderFound(true);
+        this.flash(`${m.w} +${m.pts}${m.tags && m.tags.length ? ' ' + m.tags.join(' ') : ''}`, 'good');
+        const g = document.querySelector('.gridwrap'), r = g && g.getBoundingClientRect();
+        if (r) floatUp('+' + m.pts, r.left + r.width / 2, r.top + r.height / 2);
+        const big = m.w.length >= 6 || m.lucky || m.pts >= 8;
+        Sound.good(big); if (big) confetti(36);
+        if (navigator.vibrate) navigator.vibrate(big ? [30, 40, 60] : 20);
+      } else { this.flash(m.reason, 'bad'); Sound.bad(); }
     }
   },
   flash(text, cls) {
     const el = document.getElementById('cur'); if (!el) return;
+    el.className = 'cur'; void el.offsetWidth;
     el.textContent = text; el.className = 'cur ' + cls;
-    clearTimeout(this.flashT); this.flashT = setTimeout(() => this.paint(), 900);
+    if (text.length > 14) el.style.fontSize = '20px'; else el.style.fontSize = '';
+    clearTimeout(this.flashT); this.flashT = setTimeout(() => this.paint(), 1100);
   },
   paint() {
     const st = this.st; if (!st || st.phase !== 'play') return;
-    document.querySelectorAll('.grid .tile').forEach((t, i) => t.classList.toggle('sel', this.path.includes(i)));
+    const wrap = document.querySelector('.gridwrap'); if (!wrap) return;
+    const tiles = wrap.querySelectorAll('.tile');
+    tiles.forEach((t, i) => t.classList.toggle('sel', this.path.includes(i)));
+    const wr = wrap.getBoundingClientRect(), line = wrap.querySelector('polyline');
+    line.setAttribute('points', this.path.map(i => { const r = tiles[i].getBoundingClientRect(); return (r.left + r.width / 2 - wr.left) + ',' + (r.top + r.height / 2 - wr.top); }).join(' '));
+    line.setAttribute('stroke-width', wr.width / st.size * .16);
     const el = document.getElementById('cur'); if (!el) return;
     const word = this.path.map(i => st.grid[i]).join('');
-    if (word) { clearTimeout(this.flashT); el.textContent = word; el.className = 'cur'; }
-    else { el.textContent = 'Drag across letters to spell a word'; el.className = 'cur hint'; }
+    if (word) { clearTimeout(this.flashT); el.textContent = word; el.className = 'cur'; el.style.fontSize = ''; }
+    else { el.textContent = 'Drag across letters to spell a word'; el.className = 'cur hint'; el.style.fontSize = ''; }
   },
-  renderFound() {
+  renderFound(isNew) {
     const el = document.getElementById('found'); if (!el) return;
-    el.innerHTML = this.found.map(x => `<span class="w">${x.w}<sup>${x.pts}</sup></span>`).join('');
-    const c = document.getElementById('count'); if (c) c.textContent = this.found.length + (this.found.length === 1 ? ' word' : ' words');
+    el.innerHTML = this.found.map((x, i) => `<span class="w ${isNew && i === 0 ? 'new' : ''}">${x.w}<sup>${x.pts}</sup></span>`).join('');
+    const c = document.getElementById('score'); if (c) c.textContent = this.found.reduce((n, x) => n + x.pts, 0) + ' pts';
   },
   submit() {
     const st = this.st, path = this.path; this.path = [];
@@ -404,9 +662,9 @@ const Player = {
     this.paint();
     if (path.length < 2) return;
     if (performance.now() > this.endLocal) return this.flash("Time's up", 'bad');
-    if (word.length < st.minLen) return this.flash('Too short', 'bad');
-    if (this.found.some(x => x.w === word)) return this.flash('Already found', 'bad');
-    if (this.conn && this.conn.open) this.conn.send({ t: 'word', w: word }); else this.flash('Not connected', 'bad');
+    if (word.length < st.round.minLen) { Sound.bad(); return this.flash('Too short', 'bad'); }
+    if (this.found.some(x => x.w === word)) { Sound.bad(); return this.flash('Already found', 'bad'); }
+    if (this.conn && this.conn.open) this.conn.send({ t: 'word', path }); else this.flash('Not connected', 'bad');
   },
   bindGrid(el) {
     let active = false;
@@ -427,7 +685,7 @@ const Player = {
       if (!active) return;
       const i = tileAt(e.clientX, e.clientY, false), p = this.path; if (i < 0) return;
       if (p.length > 1 && p[p.length - 2] === i) p.pop();
-      else if (!p.includes(i) && (p.length === 0 || this.nb[p[p.length - 1]].includes(i))) p.push(i);
+      else if (!p.includes(i) && (p.length === 0 || this.nb[p[p.length - 1]].includes(i))) { p.push(i); Sound.tone(440 + p.length * 60, .05, 'sine', .04); }
       else return;
       this.paint();
     });
@@ -436,19 +694,23 @@ const Player = {
     el.addEventListener('pointercancel', () => { active = false; this.path = []; this.paint(); });
     el.addEventListener('lostpointercapture', end);
   },
-  render() {
+  render(deal) {
     clearInterval(this.tick);
-    const st = this.st;
+    const st = this.st, me = avatar(this.ch, 72);
+    const reacts = `<div class="reacts">${REACTS.map((e, i) => `<button data-react="${i}">${e}</button>`).join('')}</div><p class="dim" style="font-size:14px">Tap to react on the big screen</p>`;
     this.showNet();
-    if (!st) { app.innerHTML = `<div class="center">${LOGO}<p class="dim">Joining game <b>${esc(this.code)}</b>…</p><button class="btn ghost small" onclick="location.href=location.pathname">Change code</button></div>`; return; }
+    if (!st) { app.innerHTML = `<div class="center">${LOGO}${me}<p class="dim">Joining game <b>${esc(this.code)}</b>…</p><button class="btn ghost small" onclick="location.href=location.pathname">Change code</button></div>`; return; }
     if (st.phase === 'lobby') {
-      app.innerHTML = `<div class="center">${LOGO}<h2>You're in, ${esc(this.name)}!</h2><p class="dim">Watch the big screen — the round starts there.</p>
-        <div class="chips" style="justify-content:center">${st.players.map(n => `<div class="chip">${esc(n)}</div>`).join('')}</div></div>`;
+      app.innerHTML = `<div class="center">${LOGO}${me}<h2>You're in, ${esc(this.name)}!</h2><p class="dim">Watch the big screen — the game starts there.</p>
+        <div class="chips" style="justify-content:center">${st.players.map(p => `<div class="chip">${avatar(p.ch, 28)}${esc(p.name)}</div>`).join('')}</div>${reacts}</div>`;
+    } else if (st.phase === 'intro') {
+      app.innerHTML = introHtml(st.round); runCountdown(this.introEnd);
     } else if (st.phase === 'play') {
+      const t = TYPES[st.round.type];
       app.innerHTML = `<div class="phone">
-        <div class="top"><span id="timer">${fmt(st.remainingMs)}</span><span id="count" class="dim" style="font-size:18px"></span></div>
+        <div class="top"><span id="timer">${fmt(this.endLocal - performance.now())}</span><span class="badge" style="font-size:14px">${t.icon} ${t.name}${st.round.x > 1 ? ' ×' + st.round.x : ''}</span><span id="score" style="color:var(--gold);font-size:20px"></span></div>
         <div id="cur" class="cur"></div>
-        ${gridHtml(st.grid, st.size, 'min(92vw, 52vh, 480px)')}
+        ${gridHtml(st.grid, st.size, 'min(92vw, 52vh, 480px)', st.mult, st.star, deal)}
         <div id="found" class="words found"></div>
       </div>`;
       this.bindGrid(app.querySelector('.grid'));
@@ -458,13 +720,19 @@ const Player = {
         el.textContent = left > 0 ? fmt(left) : "Time's up!"; el.style.color = left <= 10000 ? 'var(--bad)' : '';
       }, 200);
     } else {
-      const r = st.results, me = r.table.find(p => p.id === st.you), rank = r.table.findIndex(p => p.id === st.you) + 1;
-      app.innerHTML = `<div class="phone" style="gap:16px">${LOGO}
-        ${me ? `<div class="card stack" style="width:100%;text-align:center"><p class="dim" style="font-weight:700">${rank === 1 && me.score > 0 ? '🏆 You won!' : 'You came ' + rank + (['st', 'nd', 'rd'][rank - 1] || 'th')}</p>
-          <div style="font-size:64px;font-weight:900;color:var(--gold);line-height:1">${me.score}</div>
-          <div class="words" style="justify-content:center">${me.words.map(x => `<span class="w ${x.shared && r.cancel ? 'shared' : ''}">${x.w}<sup>${x.pts || ''}</sup></span>`).join('') || '<span class="dim">No words this round</span>'}</div></div>` : ''}
-        <div class="card stack" style="width:100%">${r.table.map((p, i) => `<div class="setting"><span>${i + 1}. ${esc(p.name)}</span><span style="color:var(--gold)">${p.score}</span></div>`).join('')}</div>
-        <p class="dim">Next round starts from the big screen.</p></div>`;
+      const r = st.results, t = TYPES[r.round.type], mine = r.table.find(p => p.id === st.you), rank = r.table.findIndex(p => p.id === st.you) + 1;
+      const top = r.table.length ? r.table[0].total : 0, won = mine && mine.total === top && top > 0;
+      app.innerHTML = `<div class="phone" style="gap:14px">
+        <p class="dim" style="font-weight:800">${t.icon} ${t.name} · Round ${r.round.n} of ${r.round.total}</p>
+        ${mine ? `<div class="card stack" style="width:100%;text-align:center;align-items:center">${me}
+          <p style="font-weight:800;font-size:20px">${r.final ? (won ? '🏆 You won the game!' : 'You finished ' + ord(rank)) : (won ? "You're in the lead!" : "You're " + ord(rank))}</p>
+          <div style="font-size:60px;font-weight:900;color:var(--gold);line-height:1">${mine.total}</div>
+          <p class="dim" style="font-weight:700">+${mine.score} this round</p>
+          <div class="words" style="justify-content:center">${mine.words.map(x => `<span class="w ${x.shared && r.cancel ? 'shared' : ''}">${x.w}<sup>${x.pts || ''}</sup></span>`).join('') || '<span class="dim">No words this round</span>'}</div></div>` : ''}
+        <div class="card stack" style="width:100%">${r.table.map((p, i) => `<div class="setting"><span style="display:inline-flex;align-items:center;gap:8px">${i + 1}. ${avatar(p.ch, 28)}${esc(p.name)}</span><span style="color:var(--gold)">${p.total}</span></div>`).join('')}</div>
+        ${r.stats && r.table.length > 1 ? `<div class="card stack" style="width:100%"><h3 style="font-size:16px">📊 This group · ${r.stats.games} game${r.stats.games === 1 ? '' : 's'}</h3>
+          ${Object.values(r.stats.p).sort((a, b) => b.wins - a.wins).map(e => `<div class="setting"><span style="display:inline-flex;align-items:center;gap:8px">${avatar(e.ch, 28)}${esc(e.name)}</span><span>${e.wins} win${e.wins === 1 ? '' : 's'}</span></div>`).join('')}</div>` : ''}
+        ${reacts}<p class="dim">${r.final ? 'A new game starts from the big screen.' : 'Next round starts from the big screen.'}</p></div>`;
     }
   },
 };
@@ -472,23 +740,29 @@ const Player = {
 /* ---------------- HOME ---------------- */
 function home() {
   const code = (params.get('join') || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+  let ch = store.get('ws-ch'); ch = ch === null ? rnd(CHARS.length) : Math.max(0, Math.min(CHARS.length - 1, +ch || 0));
   app.innerHTML = `<div class="center">${LOGO}
-    <form id="join" class="card stack" style="width:min(100%,380px)">
+    <form id="join" class="card stack" style="width:min(100%,400px)">
       <h2>Join a game</h2>
       <input class="field" id="code" placeholder="CODE" maxlength="4" autocapitalize="characters" autocomplete="off" autocorrect="off" value="${esc(code)}" style="letter-spacing:.3em">
       <input class="field" id="name" placeholder="Your name" maxlength="14" autocomplete="off" value="${esc(store.get('ws-name') || '')}">
+      <p class="dim" style="font-weight:700">Pick your character: <b id="chname" style="color:var(--ink)"></b></p>
+      <div class="picker">${CHARS.map((c, i) => `<button type="button" data-ch="${i}" aria-label="${c.n}">${avatar(i)}</button>`).join('')}</div>
       <button class="btn">Join</button>
     </form>
     ${code ? '' : `<p class="dim">or</p><button class="btn ghost" id="host">Host on this screen</button><p class="dim" style="max-width:340px">Hosting shows the letter grid, timer and scores — use it on the iPad or TV everyone can see.</p>`}
   </div>`;
   const f = document.getElementById('join');
+  const pick = i => { ch = i; f.querySelectorAll('[data-ch]').forEach(b => b.classList.toggle('on', +b.dataset.ch === i)); document.getElementById('chname').textContent = CHARS[i].n; };
+  pick(ch);
+  f.querySelector('.picker').addEventListener('click', e => { const b = e.target.closest('[data-ch]'); if (b) { pick(+b.dataset.ch); Sound.pop(); } });
   f.addEventListener('submit', e => {
     e.preventDefault();
     const c = f.code.value.toUpperCase().replace(/[^A-Z]/g, ''), n = f.name.value.trim();
     if (c.length !== 4) return f.code.focus();
     if (!n) return f.name.focus();
     history.replaceState(null, '', location.pathname + '?join=' + c);
-    Player.start(c, n);
+    Player.start(c, n, ch);
   });
   const h = document.getElementById('host');
   if (h) h.onclick = () => { history.replaceState(null, '', location.pathname + '?host'); Host.start(); };
