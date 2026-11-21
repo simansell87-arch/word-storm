@@ -204,7 +204,13 @@ function neighbors(size) {
 /* ---------------- sound + effects ---------------- */
 const Sound = {
   ctx: null,
-  init() { if (!this.ctx) try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {}); },
+  init() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}   // play even when the device is on silent
+    if (!this.ctx) try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+    const c = this.ctx; if (!c || c.state === 'running') return;
+    try { const p = c.resume(); if (p && p.catch) p.catch(() => {}); } catch {}
+    try { const src = c.createBufferSource(); src.buffer = c.createBuffer(1, 1, 22050); src.connect(c.destination); src.start(0); } catch {}
+  },
   tone(f, d, type, v, when) {
     const c = this.ctx; if (!c || c.state !== 'running') return;
     const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + (when || 0);
@@ -219,7 +225,7 @@ const Sound = {
   end() { [392, 330, 262].forEach((f, i) => this.tone(f, .3, 'triangle', .14, i * .16)); },
   fanfare() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => this.tone(f, .28, 'triangle', .14, i * .13)); },
 };
-document.addEventListener('pointerdown', () => Sound.init(), true);
+['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, () => Sound.init(), true));
 /* background music, generated in the browser (host screen only) */
 const Music = {
   on: store.get('ws-music') !== '0', timer: null, step: 0, next: 0, bpm: 100, gain: null, notes: 0,
@@ -358,23 +364,31 @@ const Host = {
     });
     const lock = () => navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {});
     lock(); document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && lock());
+    setInterval(() => {                                   // keep the link to the game server alive without dropping players
+      const p = this.peer; if (!p) return;
+      if (p.destroyed) this.open(); else if (p.disconnected) try { p.reconnect(); } catch {}
+    }, 3000);
   },
   open() {
     let saved = null; try { saved = sessionStorage.getItem('ws-code'); } catch {}
     const A = 'BCDFGHJKLMNPQRSTVWXZ';
     this.code = saved || Array.from({ length: 4 }, () => A[rnd(A.length)]).join('');
     const peer = this.peer = new Peer(PREFIX + this.code);
-    peer.on('open', () => { try { sessionStorage.setItem('ws-code', this.code); } catch {} this.net = ''; this.render(); });
-    peer.on('disconnected', () => { this.net = 'Reconnecting…'; this.showNet(); setTimeout(() => !peer.destroyed && peer.reconnect(), 1500); });
+    peer.on('open', () => { try { sessionStorage.setItem('ws-code', this.code); } catch {} this.idFails = 0; this.net = ''; this.phase === 'lobby' ? this.render() : this.showNet(); });
+    peer.on('disconnected', () => { if (this.peer !== peer) return; this.net = 'Reconnecting to the game server… players already in can keep playing'; this.showNet(); });
     peer.on('error', err => {
-      if (err.type === 'unavailable-id') { try { sessionStorage.removeItem('ws-code'); } catch {} peer.destroy(); this.open(); return; }
-      if (err.type === 'peer-unavailable') return;
-      this.net = 'Connection problem (' + err.type + ')'; this.showNet();
+      if (this.peer !== peer || err.type === 'peer-unavailable') return;
+      if (err.type === 'unavailable-id') {                // usually our own old link still closing: retry the same code before giving up on it
+        if ((this.idFails = (this.idFails || 0) + 1) > 4) { this.idFails = 0; try { sessionStorage.removeItem('ws-code'); } catch {} if (!peer.destroyed) peer.destroy(); }
+        return;
+      }
+      this.net = 'Reconnecting to the game server… (' + err.type + ')'; this.showNet();
     });
     peer.on('connection', conn => {
       let p = null, lastReact = 0;
       conn.on('data', m => {
         if (!m || typeof m !== 'object') return;
+        if (m.t === 'ping') { try { conn.send({ t: 'pong' }); } catch {} return; }
         if (m.t === 'hello') {
           const id = String(m.id || '').slice(0, 40); if (!id) return;
           let name = String(m.name || 'Player').trim().slice(0, 14) || 'Player';
@@ -637,7 +651,8 @@ const Player = {
     try { sessionStorage.setItem('ws-id', this.id); } catch {}
     store.set('ws-name', name); store.set('ws-ch', ch);
     this.connect(); this.render();
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !(this.conn && this.conn.open)) this.connect(); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !(this.conn && this.conn.open)) { this.fails = 0; this.connect(); } else { this.lastRx = Date.now() - 8000; this.heartbeat(); } });
+    setInterval(() => this.heartbeat(), 4000);
     app.addEventListener('click', e => {
       const s = e.target.closest('[data-send]');
       if (s && this.conn && this.conn.open) { Sound.pop(); this.conn.send(s.dataset.send === 'ready' ? { t: 'ready', v: !this.st.ready } : { t: s.dataset.send }); return; }
@@ -647,19 +662,34 @@ const Player = {
     });
   },
   connect() {
-    clearTimeout(this.retry);
+    clearTimeout(this.retry); clearTimeout(this.openT);
     if (this.peer) try { this.peer.destroy(); } catch {}
-    const again = (msg, ms) => { if (this.peer !== peer) return; this.net = msg; this.showNet(); clearTimeout(this.retry); this.retry = setTimeout(() => this.connect(), ms); };
+    const live = () => this.peer === peer && this.conn && this.conn.open;
+    const again = msg => {
+      if (this.peer !== peer) return;
+      this.fails = (this.fails || 0) + 1; this.net = msg; this.showNet();
+      clearTimeout(this.retry); this.retry = setTimeout(() => this.connect(), Math.min(1500 * this.fails, 6000));
+    };
     const peer = this.peer = new Peer();
+    this.conn = null;
+    this.openT = setTimeout(() => { if (!live()) again('Still trying to connect…'); }, 12000);
     peer.on('open', () => {
       const conn = this.conn = peer.connect(PREFIX + this.code, { reliable: true });
-      conn.on('open', () => { this.net = ''; this.showNet(); conn.send({ t: 'hello', id: this.id, name: this.name, ch: this.ch }); });
-      conn.on('data', m => this.onData(m));
-      conn.on('close', () => again('Reconnecting…', 1500));
-      conn.on('error', () => again('Reconnecting…', 1500));
+      conn.on('open', () => { clearTimeout(this.openT); this.fails = 0; this.lastRx = Date.now(); this.net = ''; this.showNet(); conn.send({ t: 'hello', id: this.id, name: this.name, ch: this.ch }); });
+      conn.on('data', m => { this.lastRx = Date.now(); this.onData(m); });
+      conn.on('close', () => { if (this.conn === conn) again('Reconnecting…'); });
+      conn.on('error', () => { if (this.conn === conn) again('Reconnecting…'); });
     });
-    peer.on('error', err => again(err.type === 'peer-unavailable' ? `Can't find game ${this.code} — is the host screen open?` : 'Reconnecting…', 3000));
-    peer.on('disconnected', () => { if (!(this.conn && this.conn.open)) again('Reconnecting…', 1500); });
+    // The game server only introduces the phone to the host. Once they are talking directly, losing it must not interrupt the game.
+    peer.on('error', err => { if (live()) return; again(err.type === 'peer-unavailable' ? `Can't find game ${this.code} — is the host screen open?` : `Reconnecting… (${err.type})`); });
+    peer.on('disconnected', () => { if (!live()) again('Reconnecting…'); });
+  },
+  heartbeat() {
+    if (document.visibilityState !== 'visible') return;
+    if (this.conn && this.conn.open) {
+      if (Date.now() - this.lastRx > 13000) { this.net = 'Reconnecting…'; this.showNet(); return this.connect(); }
+      try { this.conn.send({ t: 'ping' }); } catch {}
+    }
   },
   showNet() {
     let el = document.getElementById('net');
